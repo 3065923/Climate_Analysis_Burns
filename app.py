@@ -32,7 +32,7 @@ def justice_league():
 def welcome():
     return (
         f"Welcome to the Justice League API!<br/>"
-        f"Available Routes:<br/>"
+        f"Available Routes:<br/>" 
         f"/api/v1.0/justice-league"
     )
 
