@@ -8,16 +8,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
 import datetime as dt
 
-# # Dictionary of Justice League
-# justice_league_members = [
-#     {"superhero": "Aquaman", "real_name": "Arthur Curry"},
-#     {"superhero": "Batman", "real_name": "Bruce Wayne"},
-#     {"superhero": "Cyborg", "real_name": "Victor Stone"},
-#     {"superhero": "Flash", "real_name": "Barry Allen"},
-#     {"superhero": "Green Lantern", "real_name": "Hal Jordan"},
-#     {"superhero": "Superman", "real_name": "Clark Kent:Kal-El"},
-#     {"superhero": "Wonder Woman", "real_name": "Princess Diana"}
-# ]
 
 #################################################
 # Database Setup
@@ -71,11 +61,25 @@ def welcome():
     )
 
 
-@app.route("/api/v1.0/burns-climate-analysis")
-def justice_league():
-    """Return the justice league data as json"""
+@app.route("/api/v1.0/tobs")
+def temp_analysis():
 
-    return jsonify(justice_league_members)
+    # Create session (link) from Python to the DB
+    session = Session(engine)
+
+    # mas stands for most active station
+    mas_data_sess= session.query(Measurement.station, func.min(Measurement.tobs).label('Lowest Temperature'), func.max(Measurement.tobs).label('Highest Temperature'), func.avg(Measurement.tobs).label('Average Temperature'))\
+              .filter(Measurement.station == 'USC00519281').all()
+
+
+
+    mas_data= [{'Station': result[0], 'Lowest Temperature': result[1], 'Highest Temperature': result[2], 'Averager Temperature': result[3]} for result in mas_data_sess]
+    
+
+
+    return jsonify(mas_data)
+
+
 
 
 @app.route("/api/v1.0/precipitation")
@@ -107,6 +111,30 @@ def precipitation():
 
 
     return jsonify(prcp_dict)
+
+
+@app.route("/api/v1.0/stations")
+def stations():
+    """Return the justice league data as json"""
+
+    # Create session (link) from Python to the DB
+    session = Session(engine)
+
+    # List the stations and the counts in descending order.
+
+    station_act_sess= session.query(Measurement.station, func.count(Measurement.station).label('Station Activity'))\
+        .group_by(Measurement.station)\
+        .order_by('Station Activity').all()
+
+    # station_act_sess
+
+    station_activity= [result[0] for result in station_act_sess]
+
+
+
+
+    return jsonify(station_activity)
+
 
 
 
