@@ -54,30 +54,63 @@ def welcome():
     return (
         f"Welcome to the Hawaii Climate Analysis API!<br/>"
         f"By: Jake Burns<br/>"
+        f"<br>"
         f"Available Routes:<br/>"
         f"/api/v1.0/precipitation<br/>"
         f"/api/v1.0/stations<br/>"
         f"/api/v1.0/tobs<br/>"
+        f"/api/v1.0/start_date<br>"
+        f"/api/v1.0/start_date/end_date<br>"
+        f"<br>"
+        f"<br>"
+        f"Notes: <br>"
+        f"The 'start_date' API  returns TMIN,TMAX, TAVG from inputed start date to most recent date<br>"
+        f"<br>"
+        f"The 'start_date/end_date' API returns TMIN,TMAX, TAVG from inputed start date to inputed end date<br>"
+        f"<br>"
+        f"<br>"
+        f"*Format for inputing date: YYYY-MM-DD"
     )
 
 
-@app.route("/api/v1.0/tobs")
-def temp_analysis():
+@app.route("/api/v1.0/<start_date>")
 
+
+def tobs_from_date_start(start_date):
+        
     # Create session (link) from Python to the DB
     session = Session(engine)
 
-    # mas stands for most active station
-    mas_data_sess= session.query(Measurement.station, func.min(Measurement.tobs).label('Lowest Temperature'), func.max(Measurement.tobs).label('Highest Temperature'), func.avg(Measurement.tobs).label('Average Temperature'))\
-              .filter(Measurement.station == 'USC00519281').all()
+    start_range_temp= session.query(func.min(Measurement.tobs).label('Lowest Temperature'), func.max(Measurement.tobs).label('Highest Temperature'), func.avg(Measurement.tobs).label('Average Temperature'))\
+              .filter(Measurement.date >= start_date).all()
+
+    range_temp= [{'Lowest Temperature': result[0], 'Highest Temperature': result[1], 'Averager Temperature': result[2]} for result in start_range_temp]
+
+    #Close Session
+    session.close()
+
+    return jsonify(range_temp)
 
 
 
-    mas_data= [{'Station': result[0], 'Lowest Temperature': result[1], 'Highest Temperature': result[2], 'Averager Temperature': result[3]} for result in mas_data_sess]
-    
+
+@app.route("/api/v1.0/<start_date>/<end_date>")
 
 
-    return jsonify(mas_data)
+def tobs_in_date_range(start_date=None, end_date=None):
+        
+    # Create session (link) from Python to the DB
+    session = Session(engine)
+
+    date_range_temp= session.query(func.min(Measurement.tobs).label('Lowest Temperature'), func.max(Measurement.tobs).label('Highest Temperature'), func.avg(Measurement.tobs).label('Average Temperature'))\
+              .filter(Measurement.date.between(start_date, end_date)).all()
+
+    range_temp_f= [{'Lowest Temperature': result[0], 'Highest Temperature': result[1], 'Averager Temperature': result[2]} for result in date_range_temp]
+
+    #Close Session
+    session.close()
+
+    return jsonify(range_temp_f)
 
 
 
@@ -104,11 +137,13 @@ def precipitation():
                   .filter(Measurement.date > year_prior)\
                     .filter(Measurement.prcp != None).all()      #!= None  is sqlAlchemy equivalent to notnull()
 
-    session.close()
+    
 
     # Create a dictionary from the row data and append to a list of prcp_data
     prcp_dict= [{result[1]: result[0]}for result in results]
 
+    #Close Session
+    session.close()
 
     return jsonify(prcp_dict)
 
@@ -128,13 +163,46 @@ def stations():
 
     # station_act_sess
 
-    station_activity= [result[0] for result in station_act_sess]
+    station_activity= {'Stations': [result[0] for result in station_act_sess]}
 
+    #Close Session
+    session.close()
 
 
 
     return jsonify(station_activity)
 
+
+
+@app.route("/api/v1.0/tobs")
+def temp_station_analysis():
+
+    # Create session (link) from Python to the DB
+    session = Session(engine)
+
+    # Calculate the date one year from the last date in data set.
+    most_recent_date= dt.date(2017, 8, 23)
+
+    year_prior= most_recent_date - dt.timedelta(days=365)
+
+   # Query the last 12 months of temperature observation data for this station and plot the results as a histogram
+
+    #Most Active Staion: USC00519281
+
+    temp_results = session.query(Measurement.station, Measurement.tobs, \
+                            Measurement.date)\
+                    .filter(Measurement.date > year_prior)\
+                        .filter(Measurement.station == 'USC00519281')\
+                        .filter(Measurement.tobs != None).all()      #!= None  is sqlAlchemy equivalent to notnull()
+
+    #Close Session
+    session.close()
+
+    # List comprehension solution
+    temp_rows = [{"Date": result[2], "Temperature": result[1]} for result in temp_results]
+
+
+    return jsonify(temp_rows)
 
 
 
